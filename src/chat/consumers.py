@@ -1,5 +1,7 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from .models import Mensagem
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -23,6 +25,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         text_data_json = json.loads(text_data)
         message = text_data_json['message']
 
+        # Usamos 'await' porque a função que cria é assíncrona (veja abaixo)
+        await self.salvar_mensagem(self.room_name, message)
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -37,3 +42,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data = json.dumps({
             'message': message
         }))
+
+    @database_sync_to_async
+    def salvar_mensagem(self, sala, conteudo):
+        return Mensagem.objects.create(sala=sala, conteudo=conteudo)

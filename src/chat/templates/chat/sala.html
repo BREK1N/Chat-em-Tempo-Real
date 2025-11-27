@@ -6,7 +6,12 @@
 <body>
     <h2>Sala de Chat: {{ nome_sala }}</h2>
     
-    <textarea id="chat-log" cols="100" rows="20" readonly></textarea><br>
+    <textarea id="chat-log" cols="100" rows="20" readonly>
+{% for m in mensagens %}
+{{ m.autor }}: {{ m.conteudo }}
+{% endfor %}
+</textarea>
+
     <input id="chat-message-input" type="text" size="100" placeholder="Digite sua mensagem..."><br>
     <input id="chat-message-submit" type="button" value="Enviar">
 
