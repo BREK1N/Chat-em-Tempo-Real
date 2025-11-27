@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sala: {{ nome_sala }}</title>
+</head>
+<body>
+    <h2>Sala de Chat: {{ nome_sala }}</h2>
+    
+    <textarea id="chat-log" cols="100" rows="20" readonly></textarea><br>
+    <input id="chat-message-input" type="text" size="100" placeholder="Digite sua mensagem..."><br>
+    <input id="chat-message-submit" type="button" value="Enviar">
+
+    {{ nome_sala|json_script:"nome-sala" }}
+
+    <script>
+        const nomeSala = JSON.parse(document.getElementById('nome-sala').textContent);
+
+        // 1. Cria a conexão WebSocket
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/' + nomeSala + '/'
+        );
+
+        // 2. Quando receber mensagem do servidor
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            document.querySelector('#chat-log').value += (data.message + '\n');
+        };
+
+        // 3. Enviar mensagem ao clicar no botão
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
+        };
+    </script>
+</body>
+</html>
