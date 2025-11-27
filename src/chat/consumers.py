@@ -23,18 +23,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
-        message = text_data_json['message']
+        if 'typing' in text_data_json:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_typing',
+                    'user': 'Alguém'
+                }
+            )
+        else:
+            message = text_data_json['message']
 
-        # Usamos 'await' porque a função que cria é assíncrona (veja abaixo)
-        await self.salvar_mensagem(self.room_name, message)
+            # Usamos 'await' porque a função que cria é assíncrona (veja abaixo)
+            await self.salvar_mensagem(self.room_name, message)
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message
-            }
-        )
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message
+                }
+            )
+
+
+
+       
     
     async def chat_message(self, event):
         message = event['message']
@@ -46,3 +59,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def salvar_mensagem(self, sala, conteudo):
         return Mensagem.objects.create(sala=sala, conteudo=conteudo)
+
+    
+    async def user_typing(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'user': event['user']
+        }))

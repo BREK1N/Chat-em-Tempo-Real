@@ -7,40 +7,81 @@
     <h2>Sala de Chat: {{ nome_sala }}</h2>
     
     <textarea id="chat-log" cols="100" rows="20" readonly>
-{% for m in mensagens %}
-{{ m.autor }}: {{ m.conteudo }}
-{% endfor %}
-</textarea>
-
-    <input id="chat-message-input" type="text" size="100" placeholder="Digite sua mensagem..."><br>
+    {% for m in mensagens %}
+    {{ m.autor }}: {{ m.conteudo }}
+    {% endfor %}
+    </textarea>
+    <small id="typing-status" style="color: gray; font-style: italic; min-height: 20px; display: block;"></small> <input id="chat-message-input" ...>
     <input id="chat-message-submit" type="button" value="Enviar">
 
     {{ nome_sala|json_script:"nome-sala" }}
 
     <script>
-        const nomeSala = JSON.parse(document.getElementById('nome-sala').textContent);
+    const nomeSala = JSON.parse(document.getElementById('nome-sala').textContent);
+    const chatSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/chat/' + nomeSala + '/'
+    );
 
-        // 1. Cria a conexão WebSocket
-        const chatSocket = new WebSocket(
-            'ws://' + window.location.host + '/ws/chat/' + nomeSala + '/'
-        );
+    let typingTimer; // Variável para controlar o tempo
 
-        // 2. Quando receber mensagem do servidor
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        
+        // Se for mensagem de texto normal
+        if (data.message) {
             document.querySelector('#chat-log').value += (data.message + '\n');
-        };
+            // Se chegou mensagem nova, limpa o aviso de "digitando" na hora
+            document.querySelector('#typing-status').innerText = "";
+        }
+        
+        // Se for aviso de digitação
+        else if (data.type === 'typing') {
+            const statusDiv = document.querySelector('#typing-status');
+            statusDiv.innerText = "Alguém está digitando...";
+            
+            // Limpa o timer anterior (se houver) para não piscar
+            clearTimeout(typingTimer);
+            
+            // Cria um novo timer para apagar a mensagem daqui a 2 segundos
+            typingTimer = setTimeout(function() {
+                statusDiv.innerText = "";
+            }, 2000);
+        }
+    };
 
-        // 3. Enviar mensagem ao clicar no botão
-        document.querySelector('#chat-message-submit').onclick = function(e) {
+    chatSocket.onclose = function(e) {
+        console.error('Chat fechado inesperadamente');
+    };
+
+    // Enviar mensagem (ENTER)
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {  // enter
             const messageInputDom = document.querySelector('#chat-message-input');
             const message = messageInputDom.value;
-            
             chatSocket.send(JSON.stringify({
                 'message': message
             }));
             messageInputDom.value = '';
-        };
-    </script>
+        }
+    };
+
+    // Detectar digitação (Evento novo!)
+    document.querySelector('#chat-message-input').oninput = function(e) {
+        // Envia sinal para o backend
+        chatSocket.send(JSON.stringify({
+            'typing': true
+        }));
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function(e) {
+        const messageInputDom = document.querySelector('#chat-message-input');
+        const message = messageInputDom.value;
+        chatSocket.send(JSON.stringify({
+            'message': message
+        }));
+        messageInputDom.value = '';
+    };
+</script>
+
 </body>
 </html>
